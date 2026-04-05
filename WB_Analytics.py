@@ -1,7 +1,5 @@
 try:
     from ctypes import windll
-    # Устанавливаем режим осознания DPI (1 = Process_System_DPI_Aware)
-    # Это часто помогает избежать ошибки, которую выдает Qt
     windll.shcore.SetProcessDpiAwareness(1)
 except Exception:
     pass
@@ -20,8 +18,6 @@ from pathlib import Path
 import shutil
 import webbrowser
 
-
-# Настраиваем базовую палитру CustomTkinter под ваш макет
 ctk.set_appearance_mode("light") 
 ctk.set_default_color_theme("blue")
 
@@ -30,8 +26,8 @@ ctk.set_default_color_theme("blue")
 THEMES = {
     "light": {
         "bg": "#ffffff",        
-        "fg": "#4A4A8E",        # Темно-синий текст
-        "grid": "#E0E7FF",      # Светло-голубая сетка
+        "fg": "#4A4A8E",
+        "grid": "#E0E7FF",
         "plot_style": "default"
     },
     "dark": {
@@ -48,19 +44,12 @@ class WbTrackerApp:
         self.root = root
         self.root.title("WB Analytics")
         
-        # --- АДАПТИВНАЯ ГЕОМЕТРИЯ ---
-        # Проверяем высоту экрана пользователя
         screen_height = self.root.winfo_screenheight()
-        
         if screen_height <= 800:
-            # Если экран 768p, разворачиваем на весь экран
-            # after(10, ...) нужен, чтобы Windows успела отрисовать окно перед максимизацией
             self.root.after(10, lambda: self.root.state('zoomed'))
         else:
-            # Если экран Full HD и выше, ставим твой стандартный размер
             self.root.geometry("1250x850") 
-    
-        # --- ОСТАЛЬНАЯ ЛОГИКА ---
+
         self.is_dark_mode = False
         self.save_dir = Path.home() / 'Documents' / 'wb_reports'
         self.save_dir.mkdir(parents=True, exist_ok=True)
@@ -88,19 +77,15 @@ class WbTrackerApp:
             except Exception: pass
 
     def setup_ui(self):
-        # 1. Создаем основной холст для градиентного фона
-        # highlightthickness=0 убирает рамку вокруг холста
         self.bg_canvas = tk.Canvas(self.root, highlightthickness=0)
         self.bg_canvas.place(relx=0, rely=0, relwidth=1, relheight=1)
-        
-        # Привязываем перерисовку градиента к изменению размера окна
+
         self.bg_canvas.bind("<Configure>", self.draw_gradient_event)
 
-        # 2. Главный контейнер (прозрачный, чтобы видеть градиент)
         self.main_container = ctk.CTkFrame(self.root, fg_color="transparent")
         self.main_container.pack(fill=tk.BOTH, expand=True)
 
-        # --- ШАПКА (Header) ---
+        # Header
         self.header = ctk.CTkFrame(self.main_container, fg_color="transparent")
         self.header.pack(fill=tk.X, padx=30, pady=(10, 5))
 
@@ -141,14 +126,14 @@ class WbTrackerApp:
         )
         self.btn_add.pack(side=tk.LEFT, padx=5)
 
-        # --- ПАНЕЛЬ ПАРАМЕТРОВ (Белая карточка) ---
+        # Панель параметров
         self.filter_card = ctk.CTkFrame(
             self.main_container, fg_color="white", corner_radius=20, 
             border_width=1, border_color="#E0E7FF"
         )
         self.filter_card.pack(fill=tk.X, padx=30, pady=10)
 
-        # Выпадающие списки (убираем текст по умолчанию через values=[])
+        # Выпадающие списки (values=[] исправляет CtkComboBox)
         self.cb_from = ctk.CTkComboBox(self.filter_card, width=130, corner_radius=10, values=[], command=lambda x: self.update_graph())
         self.cb_from.pack(side=tk.LEFT, padx=15, pady=10)
 
@@ -167,7 +152,7 @@ class WbTrackerApp:
         )
         self.btn_plot.pack(side=tk.RIGHT, padx=20, pady=10)
 
-        # --- ОБЛАСТЬ ГРАФИКА (Белая карточка) ---
+        # Область графика
         self.graph_card = ctk.CTkFrame(self.main_container, fg_color="white", corner_radius=20)
         self.graph_card.pack(fill=tk.BOTH, expand=True, padx=30, pady=12)
         
@@ -186,27 +171,27 @@ class WbTrackerApp:
                       text_color="#7B61FF", border_width=2, border_color="#7B61FF", 
                       corner_radius=15, hover_color="#F0EEFF").pack(side=tk.LEFT, padx=10)
 
-        # Новая кнопка "Товары на складе"
+        # Кнопка "Товары на складе"
         ctk.CTkButton(self.bottom_btn_frame, text="📦 ТОВАРЫ НА СКЛАДЕ", 
                       command=self.open_stock_window, fg_color="transparent", 
                       text_color="#7B61FF", border_width=2, border_color="#7B61FF", 
                       corner_radius=15, hover_color="#F0EEFF").pack(side=tk.LEFT, padx=10)
 
-        # ФУТЕР
+        # Футер
         self.lbl_author = ctk.CTkLabel(self.main_container, text="made by @iFe1kx", font=("Courier New", 11), text_color="#4A4A8E", cursor="hand2")
         self.lbl_author.pack(side=tk.BOTTOM, pady=5)
         self.lbl_author.bind("<Button-1>", lambda e: webbrowser.open("https://t.me/iFe1kx"))
 
     def draw_gradient_event(self, event):
         """Метод для отрисовки градиента при изменении размера окна"""
-        self.bg_canvas.delete("all") # Очищаем старый градиент
+        self.bg_canvas.delete("all")
         width = event.width
         height = event.height
         
         # Твои цвета
-        color1 = "#ebd1ff" # Сиреневый
-        color2 = "#ebe1fe" # Светло-фиолетовый
-        color3 = "#e5e7ff" # Нежно-голубой
+        color1 = "#ebd1ff"
+        color2 = "#ebe1fe"
+        color3 = "#e5e7ff"
         
         def interpolate(c1, c2, f):
             r1, g1, b1 = self.root.winfo_rgb(c1)
@@ -216,17 +201,14 @@ class WbTrackerApp:
             b = int(b1 + f * (b2 - b1))
             return f"#{r>>8:02x}{g>>8:02x}{b>>8:02x}"
 
-        # Количество шагов для плавности
         steps = 100
-        # Имитация угла 145 градусов (диагональный градиент)
         for i in range(steps):
             f = i / steps
             if f < 0.5:
                 curr_color = interpolate(color1, color2, f * 2)
             else:
                 curr_color = interpolate(color2, color3, (f - 0.5) * 2)
-            
-            # Рисуем линии под наклоном
+
             offset = height * 0.5
             self.bg_canvas.create_polygon(
                 0, i * (height/steps) + offset,
@@ -236,7 +218,6 @@ class WbTrackerApp:
                 fill=curr_color, outline=curr_color
             )
 
-    # --- ВСЯ ЛОГИКА НИЖЕ ОСТАВЛЕНА БЕЗ ИЗМЕНЕНИЙ ---
     def refresh_barcode_list(self):
         if self.master_df.empty: return
         unique_bcs = sorted(self.master_df['Баркод'].unique().tolist())
@@ -300,23 +281,23 @@ class WbTrackerApp:
         self.refresh_barcode_list()
 
     def update_graph(self):
-        # 1. Проверка наличия данных
+        # Проверка наличия данных
         if self.master_df.empty: 
             self.ax.clear()
             self.canvas.draw()
             return
         
-        # 2. Определение темы (цвета для графика)
-        # Если self.is_dark_mode не определен, используем False
+        # Определение темы (цвета для графика)
+        # Легаси код!!!
         is_dark = getattr(self, 'is_dark_mode', False)
         t = THEMES["dark"] if is_dark else THEMES["light"]
         plt.style.use(t["plot_style"])
         
-        # 3. Получение значений из фильтров
+        # Получение значений из фильтров
         metric = self.cb_metric.get()
         selected_ui_value = self.cb_barcode.get()
         
-        # Защита: если выбор еще не сделан или там текст по умолчанию
+        # Если выбор еще не сделан или там текст по умолчанию
         if not metric or metric == "CTkComboBox" or not selected_ui_value or selected_ui_value == "CTkComboBox":
             return
 
@@ -325,7 +306,7 @@ class WbTrackerApp:
         self.figure.set_facecolor(t["bg"])
         self.ax.set_facecolor(t["bg"])
 
-        # 4. Фильтрация данных по датам
+        # Фильтрация данных по датам
         try:
             start_date = pd.to_datetime(self.cb_from.get())
             end_date = pd.to_datetime(self.cb_to.get())
@@ -336,7 +317,7 @@ class WbTrackerApp:
 
         df[metric] = pd.to_numeric(df[metric], errors='coerce').fillna(0)
 
-        # 5. Логика выбора конкретного товара или суммы
+        # Логика выбора конкретного товара или суммы
         if selected_ui_value == "Суммарно все товары":
             res = df.groupby('Дата')[metric].sum()
             label_text = "Все товары"
@@ -352,32 +333,31 @@ class WbTrackerApp:
             res = df[df['Баркод'] == str(target_bc)].groupby('Дата')[metric].sum()
             label_text = selected_ui_value
 
-        # 6. Отрисовка со СВЕТОФОРОМ
+        # Покраска по правилам 5-15-более
         if not res.empty:
-            last_val = res.iloc[-1] # Последнее значение для цвета
-            
-            # Твои правила покраски:
+            last_val = res.iloc[-1]
             if last_val < 5:
-                line_color = "#FF4C4C"  # Красный
+                line_color = "#FF4C4C"
             elif 5 <= last_val <= 15:
-                line_color = "#FFCC00"  # Желтый
+                line_color = "#FFCC00"
             else:
-                line_color = "#2ECC71"  # Зеленый
+                line_color = "#2ECC71"
 
             # Сама линия
             self.ax.plot(res.index, res.values, marker='o', color=line_color, 
                          linewidth=3, markersize=8, label=f"{label_text}")
             
             # Мягкая заливка под графиком
+            # Не работает при значениях 0-0, пофиксить
             self.ax.fill_between(res.index, res.values, color=line_color, alpha=0.1)
 
-            # Подписи чисел над точками (используем цвета темы)
+            # Подписи чисел над точками
             for x, y in zip(res.index, res.values):
                 self.ax.annotate(f'{int(y)}', (x, y), xytext=(0, 10), 
                                  textcoords="offset points", ha='center', 
                                  color=t["fg"], fontweight='bold', fontsize=10)
 
-        # 7. Финальное оформление осей
+        # Финальное оформление осей
         self.ax.set_title(f"Показатель: {metric}", color=t["fg"], pad=20, fontsize=12, fontweight='bold')
         self.ax.tick_params(colors=t["fg"], labelsize=9)
         
@@ -420,8 +400,9 @@ class WbTrackerApp:
         }
         StockCompareWindow(params)
 
+
+    # Легаси код, не работает!!!
     def create_gradient(self, canvas, width, height):
-        # Цвета из твоего запроса
         color1 = "#ebd1ff"
         color2 = "#ebe1fe"
         color3 = "#e5e7ff"
@@ -436,17 +417,13 @@ class WbTrackerApp:
             return f"#{r>>8:02x}{g>>8:02x}{b>>8:02x}"
 
         # Отрисовка полос под углом 145 градусов
-        # Для простоты и стабильности делаем вертикально-диагональный проход
         steps = 100
         for i in range(steps):
             if i < steps // 2:
-                # Переход от color1 к color2
                 fill = interpolate(color1, color2, i / (steps // 2))
             else:
-                # Переход от color2 к color3
                 fill = interpolate(color2, color3, (i - steps // 2) / (steps // 2))
-            
-            # Рисуем полосу (имитация угла 145°)
+
             canvas.create_rectangle(0, i * (height/steps), width, (i+1) * (height/steps), 
                                     fill=fill, outline=fill)
 
@@ -470,13 +447,11 @@ class SeparateChartWindow(ctk.CTkToplevel):
         super().__init__()
         self.title("Раздельная динамика товаров")
         
-        # --- 1. АДАПТИВНАЯ ГЕОМЕТРИЯ ---
+        # Адаптивная геометрия окна для 1366x768
         screen_height = self.winfo_screenheight()
         if screen_height <= 800:
-            # На ноутбуках (768p) разворачиваем на весь экран, чтобы ничего не улетало
             self.after(10, lambda: self.state('zoomed'))
         else:
-            # На Full HD мониторах задаем фиксированный комфортный размер
             self.geometry("1250x820")
             
         self.configure(fg_color="#F8FAFF")
@@ -485,8 +460,7 @@ class SeparateChartWindow(ctk.CTkToplevel):
         f = ctk.CTkFrame(self, fg_color="white", corner_radius=20)
         f.pack(fill=tk.BOTH, expand=True, padx=20, pady=(10, 10))
 
-        # --- 2. НАСТРОЙКА ГРАФИКА ---
-        # figsize=(9, 4.5) делает график более вытянутым, что идеально для ноутбуков
+        # Настройки графика
         fig, ax = plt.subplots(figsize=(9, 4.5), facecolor='white')
         self.ax = ax
         
@@ -522,9 +496,8 @@ class SeparateChartWindow(ctk.CTkToplevel):
         ax.grid(True, alpha=0.1, color="#E0E7FF")
         ax.tick_params(colors="#4A4A8E", labelsize=9)
 
-        # --- 3. КОМПАКТНАЯ ЛЕГЕНДА ---
+        # Легенда
         if num_items > 0:
-            # Фиксируем 5-6 колонок, чтобы легенда росла вширь, а не вниз
             ncol = 5 
             
             self.legend = ax.legend(
@@ -533,11 +506,11 @@ class SeparateChartWindow(ctk.CTkToplevel):
                 fancybox=True, 
                 shadow=False, 
                 ncol=ncol, 
-                fontsize=9,           # Компактный шрифт
+                fontsize=9,
                 labelcolor="#4A4A8E",
-                labelspacing=0.3,      # Минимальный вертикальный отступ
-                columnspacing=0.8,     # Уплотняем колонки по горизонтали
-                handletextpad=0.2      # Текст ближе к линии
+                labelspacing=0.3,
+                columnspacing=0.8,
+                handletextpad=0.2
             )
 
             self.legend_map = {}
@@ -548,7 +521,7 @@ class SeparateChartWindow(ctk.CTkToplevel):
                 self.legend_map[leg_line] = leg_text.get_text()
                 self.legend_map[leg_text] = leg_text.get_text()
 
-        # --- 4. АГРЕССИВНАЯ КОРРЕКЦИЯ ОТСТУПОВ ---
+        # Коррекция отступов
         plt.tight_layout()
         num_rows = int(np.ceil(num_items / ncol)) if num_items > 0 else 0
         
@@ -570,17 +543,13 @@ class SeparateChartWindow(ctk.CTkToplevel):
             self.canvas.mpl_connect('pick_event', self.on_pick)
             self.canvas.mpl_connect('button_press_event', self.on_click)
         
-        # --- ИСПРАВЛЕНИЕ ОТКРЫТИЯ НА ЗАДНЕМ ПЛАНЕ ---
-        self.lift()          # Поднимает окно над остальными
-        self.focus_force()   # Принудительно передает фокус окну
-        self.grab_set()      # (Опционально) Блокирует взаимодействие с основным окном, 
-                             # пока это не закрыто. Убери, если хочешь работать с обоими сразу.
+        # Фикс бага с открытием на заднем плане (критично)
+        self.lift()
+        self.focus_force()
+        self.grab_set()
 
-    # Методы on_pick и on_click остаются без изменений (как в прошлых ответах)
     def on_pick(self, event):
-        # Проверяем, что событие вызвано именно КЛИКОМ (mouse button), 
-        # а не прокруткой или другим действием.
-        # mouseevent.button == 1 — это левая кнопка мыши.
+        # Фикс бага с выбором товара прокруткой
         if event.mouseevent.button != 1:
             return
 
@@ -618,8 +587,6 @@ class SeparateChartWindow(ctk.CTkToplevel):
             self.canvas.draw_idle()
 
     def on_click(self, event):
-        # Игнорируем прокрутку колесика (кнопки 4 и 5 в некоторых системах)
-        # и нажатие на колесико (button 2)
         if event.button != 1:
             return
 
@@ -649,7 +616,7 @@ class StockCompareWindow(ctk.CTkToplevel):
 
         metric = params['metric']
         
-        # --- ПРАВКА: Добавляем большой блок с названием склада ---
+        # Блок с названием склада
         title_frame = ctk.CTkFrame(self, fg_color="transparent")
         title_frame.pack(fill=tk.X, padx=30, pady=(25, 15))
         
@@ -687,7 +654,7 @@ class StockCompareWindow(ctk.CTkToplevel):
         prev_date_str = pd.to_datetime(prev_date).strftime('%d.%m.%Y')
         last_date_str = pd.to_datetime(last_date).strftime('%d.%m.%Y')
 
-        # --- ЗАГОЛОВОК ТАБЛИЦЫ (Белая плашка) ---
+        # Заголовок таблицы
         header_frame = ctk.CTkFrame(self, fg_color="white", corner_radius=12, border_width=1, border_color="#E0E7FF")
         header_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
 
@@ -697,15 +664,15 @@ class StockCompareWindow(ctk.CTkToplevel):
         ctk.CTkLabel(header_frame, text=" ", width=40).pack(side=tk.LEFT) # Отступ под стрелку
         ctk.CTkLabel(header_frame, text=last_date_str, font=ctk.CTkFont(weight="bold", size=14), width=100, text_color="#7B61FF").pack(side=tk.LEFT, padx=10)
 
-        # --- СКРОЛЛИРУЕМЫЙ СПИСОК ТОВАРОВ (Белая карточка) ---
+        # Скролльный список товаров
         scroll_frame = ctk.CTkScrollableFrame(self, fg_color="white", corner_radius=15, border_width=1, border_color="#E0E7FF")
         scroll_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
 
-        # Функция для получения цвета по правилу "светофора"
+        # Функция для получения цвета по правилу 5-15-более
         def get_color(val):
-            if val < 5: return "#FF4C4C"       # Красный
-            if 5 <= val <= 15: return "#FFCC00" # Желтый
-            return "#2ECC71"                    # Зеленый
+            if val < 5: return "#FF4C4C"
+            if 5 <= val <= 15: return "#FFCC00"
+            return "#2ECC71"
 
         unique_bcs = df['Баркод'].unique()
         
@@ -733,7 +700,7 @@ class StockCompareWindow(ctk.CTkToplevel):
             # Столбец 2: Остаток на предпоследнюю дату
             ctk.CTkLabel(row_frame, text=str(val_prev), width=100, font=ctk.CTkFont(family="Segoe UI", weight="bold", size=15), text_color=get_color(val_prev)).pack(side=tk.LEFT, padx=10)
             
-            # Стрелочка (индикатор перехода)
+            # Стрелочка
             ctk.CTkLabel(row_frame, text="➔", width=40, font=("Segoe UI", 16), text_color="#C0C0D8").pack(side=tk.LEFT)
             
             # Столбец 3: Остаток на последнюю дату
@@ -743,9 +710,9 @@ class StockCompareWindow(ctk.CTkToplevel):
             divider = ctk.CTkFrame(scroll_frame, height=1, fg_color="#F0F0F5")
             divider.pack(fill=tk.X, padx=10)
 
-        # --- ИСПРАВЛЕНИЕ ОТКРЫТИЯ НА ЗАДНЕМ ПЛАНЕ ---
-        self.lift()          # Поднимает окно над остальными
-        self.focus_force()   # Принудительно передает фокус окну
+        # Фикс бага с открытием на заднем плане (критично)
+        self.lift()
+        self.focus_force()
         self.grab_set()
 
 
