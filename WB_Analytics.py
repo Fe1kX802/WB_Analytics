@@ -118,9 +118,16 @@ class WbTrackerApp:
         self.btn_del.pack(side=tk.LEFT, padx=5)
         '''
 
+        self.btn_add = ctk.CTkButton(
+            self.btn_group, text="Открыть редактор баркодов", command=self.open_barcodes,
+            fg_color="#FFDE71", text_color="#555143", hover_color="#FFD257", 
+            width=120, corner_radius=15, font=ctk.CTkFont(weight="bold")
+        )
+        self.btn_add.pack(side=tk.LEFT, padx=5)
+
 
         self.btn_add = ctk.CTkButton(
-            self.btn_group, text="+ Добавить", command=self.add_reports,
+            self.btn_group, text="+ Добавить отчет", command=self.add_reports,
             fg_color="#85FFD2", text_color="#2D5A4A", hover_color="#6EE7B7", 
             width=120, corner_radius=15, font=ctk.CTkFont(weight="bold")
         )
@@ -165,14 +172,14 @@ class WbTrackerApp:
         self.bottom_btn_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
         self.bottom_btn_frame.pack(pady=(0, 10))
 
-        # Кнопка "Раздельно"
-        ctk.CTkButton(self.bottom_btn_frame, text="📊 ТОВАРЫ РАЗДЕЛЬНО", 
+        # Кнопка "На графике"
+        ctk.CTkButton(self.bottom_btn_frame, text="📊 ТОВАРЫ НА ГРАФИКЕ", 
                       command=self.open_separate_window, fg_color="transparent", 
                       text_color="#7B61FF", border_width=2, border_color="#7B61FF", 
                       corner_radius=15, hover_color="#F0EEFF").pack(side=tk.LEFT, padx=10)
 
-        # Кнопка "Товары на складе"
-        ctk.CTkButton(self.bottom_btn_frame, text="📦 ТОВАРЫ НА СКЛАДЕ", 
+        # Кнопка "Строкой"
+        ctk.CTkButton(self.bottom_btn_frame, text="📦 ТОВАРЫ СТРОКОЙ", 
                       command=self.open_stock_window, fg_color="transparent", 
                       text_color="#7B61FF", border_width=2, border_color="#7B61FF", 
                       corner_radius=15, hover_color="#F0EEFF").pack(side=tk.LEFT, padx=10)
@@ -441,11 +448,20 @@ class WbTrackerApp:
         paths = filedialog.askopenfilenames(filetypes=[("Excel/CSV", "*.xlsx *.csv")])
         if paths: self.process_files(paths, copy_files=True); self.update_graph()
 
+    def open_barcodes(self):
+        path = Path.home() / 'Documents' / 'wb_reports' / 'barcodes.txt'
+        if not path.exists():
+            path.touch()
+        try:
+            os.startfile(str(path))
+        except Exception as e:
+            print(f"Не удалось открыть файл: {e}")
+
 
 class SeparateChartWindow(ctk.CTkToplevel):
     def __init__(self, params):
         super().__init__()
-        self.title("Раздельная динамика товаров")
+        self.title("Товары на складе графиком")
         
         # Адаптивная геометрия окна для 1366x768
         screen_height = self.winfo_screenheight()
@@ -490,7 +506,7 @@ class SeparateChartWindow(ctk.CTkToplevel):
             self.lines_map[label_name] = line
             self.orig_colors[label_name] = color
             
-        ax.set_title(f"Сравнение: {params['metric']}", pad=15, fontsize=12, fontweight='bold', color="#4A4A8E")
+        ax.set_title(f"Метрика: {params['metric']}", pad=15, fontsize=12, fontweight='bold', color="#4A4A8E")
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         ax.grid(True, alpha=0.1, color="#E0E7FF")
@@ -610,7 +626,7 @@ class SeparateChartWindow(ctk.CTkToplevel):
 class StockCompareWindow(ctk.CTkToplevel):
     def __init__(self, params):
         super().__init__()
-        self.title("Сравнение остатков")
+        self.title("Товары на складе строкой")
         self.geometry("850x700")
         self.configure(fg_color="#F8FAFF")
 
@@ -620,7 +636,7 @@ class StockCompareWindow(ctk.CTkToplevel):
         title_frame = ctk.CTkFrame(self, fg_color="transparent")
         title_frame.pack(fill=tk.X, padx=30, pady=(25, 15))
         
-        ctk.CTkLabel(title_frame, text="Склад / Метрика:", font=("Segoe UI", 12), text_color="#7B61FF").pack(anchor="w")
+        ctk.CTkLabel(title_frame, text="Метрика:", font=("Segoe UI", 12), text_color="#7B61FF").pack(anchor="w")
         ctk.CTkLabel(title_frame, text=metric.upper(), 
                      font=ctk.CTkFont(family="Segoe UI", size=26, weight="bold"), 
                      text_color="#4A4A8E", anchor="w").pack(anchor="w")
