@@ -10,6 +10,7 @@ from tkinter import filedialog, messagebox
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.dates as mdates  # Добавлен импорт для работы с датами
 import re
 import os
 from datetime import datetime
@@ -45,16 +46,51 @@ class WbTrackerApp:
         else:
             self.root.geometry("1250x850") 
 
-        self.save_dir = Path.home() / 'Documents' / 'wb_analytics'
-        self.save_dir.mkdir(parents=True, exist_ok=True)
+        # --- Базовая директория и папки юрлиц ---
+        self.base_save_dir = Path.home() / 'Documents' / 'wb_analytics'
+        self.base_save_dir.mkdir(parents=True, exist_ok=True)
+        (self.base_save_dir / 'entity_1').mkdir(exist_ok=True)
+        (self.base_save_dir / 'entity_2').mkdir(exist_ok=True)
+        
+        self.current_entity = tk.StringVar(value="Лайк Фил")
+        self.save_dir = self.base_save_dir / 'entity_1' # Директория по умолчанию
         
         self.reports_data = {}
         self.master_df = pd.DataFrame()
         self.barcode_map = {}
     
-        self.load_barcode_map()
         self.setup_ui()
+        self.switch_entity("Лайк Фил") # Загружаем данные первого юрлица при старте
+
+    def switch_entity(self, value):
+        """Метод переключения контекста между юрлицами"""
+        folder_name = 'entity_1' if value == "Лайк Фил" else 'entity_2'
+        self.save_dir = self.base_save_dir / folder_name
+        self.save_dir.mkdir(exist_ok=True)
+        
+        # Полная очистка данных в памяти
+        self.reports_data = {}
+        self.master_df = pd.DataFrame()
+        self.barcode_map = {}
+        
+        # Сброс UI-элементов
+        self.cb_from.set("")
+        self.cb_to.set("")
+        self.cb_barcode.set("")
+        self.cb_metric.set("")
+        self.cb_from.configure(values=[])
+        self.cb_to.configure(values=[])
+        self.cb_barcode.configure(values=[])
+        self.cb_metric.configure(values=[])
+        
+        # Загрузка данных выбранного юрлица
+        self.load_barcode_map()
         self.load_saved_reports()
+
+        # Если данных нет — очищаем график
+        if self.master_df.empty:
+            self.ax.clear()
+            self.canvas.draw()
 
     def load_barcode_map(self):
         self.barcode_map = {}
@@ -88,6 +124,15 @@ class WbTrackerApp:
         )
         self.lbl_title.pack(side=tk.LEFT)
 
+        # Переключатель Юрлиц
+        self.entity_selector = ctk.CTkSegmentedButton(
+            self.header, values=["Лайк Фил", "vilitori"],
+            variable=self.current_entity, command=self.switch_entity,
+            selected_color="#7B61FF", selected_hover_color="#6344FF",
+            font=ctk.CTkFont(weight="bold")
+        )
+        self.entity_selector.pack(side=tk.LEFT, padx=30)
+
         # Группа кнопок управления
         self.btn_group = ctk.CTkFrame(self.header, fg_color="transparent")
         self.btn_group.pack(side=tk.RIGHT)
@@ -101,7 +146,7 @@ class WbTrackerApp:
         self.chk_names.pack(side=tk.LEFT, padx=10)
 
         self.btn_open_bc = ctk.CTkButton(
-            self.btn_group, text="Открыть редактор баркодов", command=self.open_barcodes,
+            self.btn_group, text="Редактор баркодов", command=self.open_barcodes,
             fg_color="#FFDE71", text_color="#555143", hover_color="#FFD257", 
             width=120, corner_radius=15, font=ctk.CTkFont(weight="bold")
         )
@@ -113,6 +158,15 @@ class WbTrackerApp:
             width=120, corner_radius=15, font=ctk.CTkFont(weight="bold")
         )
         self.btn_add.pack(side=tk.LEFT, padx=5)
+
+        self.btn_remove = ctk.CTkButton(
+            self.btn_group, text="🗑 Удалить отчет", command=self.remove_report,
+            fg_color="#FF9595", text_color="#5A2D2D", hover_color="#E76E6E", 
+            width=120, corner_radius=15, font=ctk.CTkFont(weight="bold")
+        )
+        self.btn_remove.pack(side=tk.LEFT, padx=5)
+
+        
 
         # Панель параметров
         self.filter_card = ctk.CTkFrame(
@@ -179,7 +233,6 @@ class WbTrackerApp:
             b = int(b1 + f * (b2 - b1))
             return f"#{r>>8:02x}{g>>8:02x}{b>>8:02x}"
 
-        # Оптимизация: снижено со 100 до 50 шагов для ускорения рендера при растягивании окна
         steps = 50 
         for i in range(steps):
             f = i / steps
@@ -201,7 +254,9 @@ class WbTrackerApp:
             display_values.append(name)
         
         self.cb_barcode.configure(values=display_values)
-        if self.cb_barcode.get() == "CTkComboBox":
+        
+        # Если текущий выбранный товар не существует в новом юрлице — сбрасываем на "Суммарно"
+        if self.cb_barcode.get() not in display_values:
             self.cb_barcode.set(display_values[0])
 
     def process_files(self, file_paths, copy_files=False):
@@ -237,17 +292,22 @@ class WbTrackerApp:
         self.cb_from.configure(values=dates)
         self.cb_to.configure(values=dates)
 
-        if not self.cb_from.get() or self.cb_from.get() == "CTkComboBox":
+        # Проверка актуальности выбранных дат
+        if not self.cb_from.get() or self.cb_from.get() not in dates:
             self.cb_from.set(dates[0])
             self.cb_to.set(dates[-1])
 
         metrics = [c for c in self.master_df.columns if c not in {'Бренд', 'Предмет', 'Баркод', 'Дата'}]
         self.cb_metric.configure(values=metrics)
 
-        if (not self.cb_metric.get() or self.cb_metric.get() == "CTkComboBox") and metrics:
+        # Установка метрики по умолчанию
+        if (not self.cb_metric.get() or self.cb_metric.get() not in metrics) and metrics:
             self.cb_metric.set(metrics[0])
 
         self.refresh_barcode_list()
+        
+        # АВТО-ОБНОВЛЕНИЕ ГРАФИКА
+        self.update_graph()
 
     def update_graph(self):
         if self.master_df.empty: 
@@ -296,6 +356,11 @@ class WbTrackerApp:
             self.ax.plot(res.index, res.values, marker='o', color=line_color, linewidth=3, markersize=8, label=f"{label_text}")
             self.ax.fill_between(res.index, res.values, color=line_color, alpha=0.1)
 
+            # --- ФИКС ОСИ Х ---
+            self.ax.set_xticks(res.index)
+            self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m'))
+            # ------------------
+
             for x, y in zip(res.index, res.values):
                 self.ax.annotate(f'{int(y)}', (x, y), xytext=(0, 10), textcoords="offset points", 
                                  ha='center', color=t["fg"], fontweight='bold', fontsize=10)
@@ -334,8 +399,52 @@ class WbTrackerApp:
         self.process_files([str(f) for f in files])
 
     def add_reports(self):
-        paths = filedialog.askopenfilenames(filetypes=[("Excel/CSV", "*.xlsx *.csv")])
-        if paths: self.process_files(paths, copy_files=True); self.update_graph()
+        paths = filedialog.askopenfilenames(
+            initialdir=self.save_dir,
+            filetypes=[("Excel/CSV", "*.xlsx *.csv")]
+        )
+        if paths: 
+            self.process_files(paths, copy_files=True)
+            self.update_graph()
+
+    def remove_report(self):
+        file_path = filedialog.askopenfilename(
+            initialdir=self.save_dir,
+            title=f"Выберите отчет для УДАЛЕНИЯ ({self.current_entity.get()})",
+            filetypes=[("Excel/CSV", "*.xlsx *.csv")]
+        )
+        
+        if not file_path:
+            return
+
+        filename = Path(file_path).name
+        confirm = messagebox.askyesno("Подтверждение", f"Удалить файл {filename} из {self.current_entity.get()}?")
+        
+        if confirm:
+            try:
+                if Path(file_path).exists():
+                    os.remove(file_path)
+                
+                # Полная очистка и пересборка текущего юрлица
+                self.reports_data = {}
+                self.master_df = pd.DataFrame()
+                self.load_saved_reports()
+                
+                if self.master_df.empty:
+                    self.ax.clear()
+                    self.canvas.draw()
+                    self.cb_from.configure(values=[])
+                    self.cb_to.configure(values=[])
+                    self.cb_barcode.configure(values=[])
+                    self.cb_metric.configure(values=[])
+                    self.cb_from.set("")
+                    self.cb_to.set("")
+                    self.cb_barcode.set("")
+                    self.cb_metric.set("")
+                
+                messagebox.showinfo("Успех", f"Отчет {filename} удален")
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось удалить файл: {e}")
 
     def open_barcodes(self):
         path = self.save_dir / 'barcodes.txt'
@@ -363,7 +472,6 @@ class SeparateChartWindow(ctk.CTkToplevel):
         mask = (params['df']['Дата'] >= pd.to_datetime(params['date_from'])) & (params['df']['Дата'] <= pd.to_datetime(params['date_to']))
         df = params['df'][mask].copy()
         
-        # Оптимизация: группируем все одним махом через pivot_table вместо цикла
         pivot_df = df.pivot_table(index='Дата', columns='Баркод', values=params['metric'], aggfunc='sum').fillna(0)
         num_items = len(pivot_df.columns)
         colors = cm.rainbow(np.linspace(0, 1, num_items)) if num_items > 0 else []
@@ -377,6 +485,12 @@ class SeparateChartWindow(ctk.CTkToplevel):
             self.lines_map[label_name] = line
             self.orig_colors[label_name] = color
             
+        # --- ФИКС ОСИ Х ДЛЯ МУЛЬТИГРАФИКА ---
+        if not pivot_df.empty:
+            ax.set_xticks(pivot_df.index)
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m'))
+        # ------------------------------------
+
         ax.set_title(f"Метрика: {params['metric']}", pad=15, fontsize=12, fontweight='bold', color="#4A4A8E")
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
@@ -490,7 +604,6 @@ class StockCompareWindow(ctk.CTkToplevel):
         self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="white", corner_radius=15, border_width=1, border_color="#E0E7FF")
         self.scroll_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
 
-        # Оптимизация: уходим от поиска через фильтрацию внутри цикла 
         pivot_df = self.df.pivot_table(index='Баркод', columns='Дата', values=self.metric, aggfunc='sum').fillna(0)
         
         self.item_data_list = []
